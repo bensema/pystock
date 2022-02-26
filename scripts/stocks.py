@@ -10,11 +10,7 @@ import warnings
 from time import time
 import pandas as pd
 
-MYSQL_USER = 'root'
-MYSQL_PASSWORD = '123456'
-MYSQL_HOST = '127.0.0.1'
-MYSQL_PORT = 3306
-MYSQL_DATABASE = 'stock'
+from settings import *
 
 PATH_DIR = '../data/stocks'
 PATH_SH_MAIN_A = '../data/stocks/sh_main_a.xls'
@@ -137,7 +133,8 @@ def parse_sh_main_a():
     try:
         insert_list = []
         for d in df.values:
-            insert_list.append((d[0], d[1], datetime.datetime.strptime(str(d[2]), "%Y%m%d"), 'SH', 'MAIN_A'))
+            insert_list.append(
+                (d[0], d[1], datetime.datetime.strptime(str(d[2]), "%Y%m%d"), EXCHANGE_SH, MARKET_MAIN_A))
         insert = cur.executemany(sql, insert_list)
         print('批量插入返回受影响的行数：', insert)
         conn.commit()
@@ -149,7 +146,7 @@ def parse_sh_main_a():
 
 # 上海交易所 主板B
 def parse_sh_main_b():
-    df = pd.read_excel(PATH_SH_MAIN_B, usecols=["B股代码", "公司简称", "上市日期"])
+    df = pd.read_excel(PATH_SH_MAIN_B, usecols=["公司简称", "B股代码", "上市日期"])
     # data = df.head()  # 默认读取前5行的数据
     # print(data)  # 格式化输出
     cur = conn.cursor()
@@ -157,7 +154,8 @@ def parse_sh_main_b():
     try:
         insert_list = []
         for d in df.values:
-            insert_list.append((d[0], d[1], datetime.datetime.strptime(str(d[2]), "%Y%m%d"), 'SH', 'MAIN_B'))
+            insert_list.append(
+                (d[1], d[0], datetime.datetime.strptime(str(d[2]), "%Y%m%d"), EXCHANGE_SH, MARKET_MAIN_B))
         insert = cur.executemany(sql, insert_list)
         print('批量插入返回受影响的行数：', insert)
         conn.commit()
@@ -175,7 +173,8 @@ def parse_sh_star_mark():
     try:
         insert_list = []
         for d in df.values:
-            insert_list.append((d[0], d[1], datetime.datetime.strptime(str(d[2]), "%Y%m%d"), 'SH', 'MAIN_B'))
+            insert_list.append(
+                (d[0], d[1], datetime.datetime.strptime(str(d[2]), "%Y%m%d"), EXCHANGE_SH, MARKET_STR_MARK))
         insert = cur.executemany(sql, insert_list)
         print('批量插入返回受影响的行数：', insert)
         conn.commit()
@@ -197,10 +196,10 @@ def parse_sz_main_a_and_chi_next():
         insert_list = []
         for d in df.values:
             if (d[0] == "主板"):
-                market = "MAIN_A"
+                market = MARKET_MAIN_A
             else:
-                market = "CHI_NEXT"
-            insert_list.append((d[1], d[2], datetime.datetime.strptime(str(d[3]), "%Y-%m-%d"), 'SZ', market))
+                market = MARKET_CHI_NEXT
+            insert_list.append((d[1], d[2], datetime.datetime.strptime(str(d[3]), "%Y-%m-%d"), EXCHANGE_SZ, market))
         insert = cur.executemany(sql, insert_list)
         print('批量插入返回受影响的行数：', insert)
         conn.commit()
@@ -221,8 +220,8 @@ def parse_sz_main_b():
     try:
         insert_list = []
         for d in df.values:
-            market = "MAIN_B"
-            insert_list.append((d[1], d[2], datetime.datetime.strptime(str(d[3]), "%Y-%m-%d"), 'SZ', market))
+            insert_list.append(
+                (d[1], d[2], datetime.datetime.strptime(str(d[3]), "%Y-%m-%d"), EXCHANGE_SZ, MARKET_MAIN_B))
         insert = cur.executemany(sql, insert_list)
         print('批量插入返回受影响的行数：', insert)
         conn.commit()
@@ -232,7 +231,18 @@ def parse_sz_main_b():
         cur.close()
 
 
+def create_table():
+    cur = conn.cursor()
+    try:
+        cur.execute(CREATE_TABLE)
+    except:
+        pass
+    finally:
+        cur.close()
+
+
 def main():
+    create_table()
     for task in task_list:
         try:
             print("start download ", task.save_path)
@@ -243,8 +253,6 @@ def main():
         except Exception as e:
             print('download error :', str(e))
 
-    cur = conn.cursor()
-    cur.execute(CREATE_TABLE)
     try:
         parse_sh_main_a()
         parse_sh_main_b()
